@@ -61,6 +61,40 @@ public class DelayedNotifierTest {
     }
 
     @Test
+    public void singleNotifyAfterMultipleShortPings() {
+        delayedNotifier = new DelayedNotifier(new Runnable() {
+            public void run() {
+                LOG.info("Update");
+                notified = true;
+            }
+        }, 150);
+        notified = false;
+        LOG.info("Pinging notifier {}", System.currentTimeMillis());
+        delayedNotifier.ping();
+        sleep(40);
+        LOG.info("Pinging notifier {}", System.currentTimeMillis());
+        delayedNotifier.ping();
+        sleep(40);
+        LOG.info("Pinging notifier {}", System.currentTimeMillis());
+        delayedNotifier.ping();
+        sleep(40);
+        LOG.info("Pinging notifier {}", System.currentTimeMillis());
+        delayedNotifier.ping();
+        sleep(40);
+        LOG.info("Pinging notifier {}", System.currentTimeMillis());
+        delayedNotifier.ping();
+        sleep(40);
+        LOG.info("Pinging notifier {}", System.currentTimeMillis());
+        delayedNotifier.ping();
+        sleep(120);
+        LOG.info("Current time: {}, notified: {}", System.currentTimeMillis(), notified);
+        assertFalse(notified);
+        sleep(50);
+        LOG.info("Current time: {}, notified: {}", System.currentTimeMillis(), notified);
+        assertTrue(notified);
+    }
+
+    @Test
     public void consecutiveNotify() {
         delayedNotifier = new DelayedNotifier(new Runnable() {
             public void run() {
@@ -78,6 +112,49 @@ public class DelayedNotifierTest {
         delayedNotifier.ping();
         sleep(100);
         assertFalse(notified);
+        sleep(200);
+        assertTrue(notified);
+    }
+
+    @Test
+    public void maxNotifyDelay() {
+        delayedNotifier = new DelayedNotifier(new Runnable() {
+            public void run() {
+                LOG.info("Update");
+                notified = true;
+            }
+        }, 150, 350);
+        notified = false;
+        delayedNotifier.ping();
+        sleep(100);
+        assertFalse(notified);
+        delayedNotifier.ping();
+        sleep(100);
+        assertFalse(notified);
+        delayedNotifier.ping();
+        sleep(100);
+        assertFalse(notified);
+        delayedNotifier.ping();
+        sleep(100);
+        assertTrue(notified);
+    }
+
+    @Test
+    public void notifyBeforeMaxNotifyDelay() {
+        delayedNotifier = new DelayedNotifier(new Runnable() {
+            public void run() {
+                LOG.info("Update");
+                notified = true;
+            }
+        }, 150, 450);
+        notified = false;
+        delayedNotifier.ping();
+        sleep(100);
+        assertFalse(notified);
+        delayedNotifier.ping();
+        sleep(100);
+        assertFalse(notified);
+        delayedNotifier.ping();
         sleep(200);
         assertTrue(notified);
     }

@@ -7,6 +7,7 @@ public class DelayedNotifier {
     private static final Logger LOG = LoggerFactory.getLogger(DelayedNotifier.class);
     private static int threadNum = 0;
     private long delay;
+    private long maxDelay;
     private Runnable runnable;
     private Thread thread;
     private final Object sync = new Object();
@@ -17,19 +18,32 @@ public class DelayedNotifier {
             LOG.trace("Delayed notifier thread started");
             long lastPingCopy = lastPing;
             long time = delay;
+            long maxTime = lastPing + maxDelay;
+            if (maxTime < 0L) { // overflow
+                maxTime = Long.MAX_VALUE;
+            }
+            LOG.trace("lastPing={}, maxTime={}", lastPing, maxTime);
             for (;;) {
                 try {
                     LOG.trace("Delayed notifier thread sleeping for {} ms", time);
                     Thread.sleep(time);
                     synchronized(sync) {
-                        if (lastPing > lastPingCopy) {
+                        long currentTime = System.currentTimeMillis();
+                        LOG.trace("lastPing={}, currentTime={}", lastPing, currentTime);
+                        if (lastPing > lastPingCopy && currentTime < maxTime) {
                             // we always want to wait at least delay ms since last ping to execute runnable
                             // for example, if delay is 1000 ms, after first ping we always sleep for 1000 ms
                             // if there was a second ping in 700 ms, when 1000 ms expires we need to wait
                             // another 700 ms to add up to 1000 ms after last ping
-                            time = lastPing-lastPingCopy;
+                            long pingTime = lastPing-lastPingCopy;
+                            LOG.trace("pingTime={}", pingTime);
+                            long maxPingTime = maxTime-currentTime;
+                            LOG.trace("maxPingTime={}", maxPingTime);
+                            time = Math.min(pingTime, maxPingTime);
                             // check for anything funky going on in the system, e.g. leap second or clock adjustments
-                            if (time < 0 || time > delay) {
+                            if (time < 0) {
+                                time = 0;
+                            } else if (time > delay) {
                                 time = delay;
                             }
                             lastPingCopy = lastPing;
@@ -48,10 +62,14 @@ public class DelayedNotifier {
     };
 
     public DelayedNotifier(Runnable runnable, long delay) {
-        this.delay = delay;
-        this.runnable = runnable;
+        this(runnable, delay, Long.MAX_VALUE);
     }
 
+    public DelayedNotifier(Runnable runnable, long delay, long maxDelay) {
+        this.runnable = runnable;
+        this.delay = delay;
+        this.maxDelay = maxDelay;
+    }
     public void ping() {
         synchronized(sync) {
             lastPing = System.currentTimeMillis();
