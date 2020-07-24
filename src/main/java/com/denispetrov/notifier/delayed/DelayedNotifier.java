@@ -62,18 +62,29 @@ public class DelayedNotifier {
     };
 
     public DelayedNotifier(Runnable runnable, long delay) {
-        this(runnable, delay, Long.MAX_VALUE);
+        setup(runnable, delay, Long.MAX_VALUE);
     }
 
     public DelayedNotifier(Runnable runnable, long delay, long maxDelay) {
+        setup(runnable, delay, maxDelay);
+    }
+
+    public DelayedNotifier() {
+    }
+
+    public void setup(Runnable runnable, long delay, long maxDelay) {
         this.runnable = runnable;
         this.delay = delay;
         this.maxDelay = maxDelay;
     }
+
     public void ping() {
         synchronized(sync) {
             lastPing = System.currentTimeMillis();
             if (thread == null) {
+                if (runnable == null) {
+                    throw new IllegalStateException("Must call setup() or a parametrized constructor before ping");
+                }
                 LOG.trace("Delayed notifier starting new thread {}", threadNum);
                 thread = new Thread(threadRunnable, "dn-" + threadNum);
                 thread.start();
